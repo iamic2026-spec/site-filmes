@@ -1,0 +1,6 @@
+{
+  "name": "CineLumina - Rede Social de Filmes",
+  "description": "Rede social para amantes de cinema compartilharem seus filmes favoritos, explorarem perfis e interagirem com comentários.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

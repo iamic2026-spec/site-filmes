@@ -1,0 +1,244 @@
+---
+name: Cinematic Neon Lumina
+colors:
+  surface: '#131317'
+  surface-dim: '#131317'
+  surface-bright: '#39393d'
+  surface-container-lowest: '#0e0e12'
+  surface-container-low: '#1b1b1f'
+  surface-container: '#1f1f24'
+  surface-container-high: '#2a292e'
+  surface-container-highest: '#353439'
+  on-surface: '#e4e1e7'
+  on-surface-variant: '#e3bdbf'
+  inverse-surface: '#e4e1e7'
+  inverse-on-surface: '#303034'
+  outline: '#aa888a'
+  outline-variant: '#5b4041'
+  surface-tint: '#ffb2b7'
+  primary: '#ffb2b7'
+  on-primary: '#67001b'
+  primary-container: '#ff516a'
+  on-primary-container: '#5b0017'
+  inverse-primary: '#bc0b3b'
+  secondary: '#ffb95f'
+  on-secondary: '#472a00'
+  secondary-container: '#ee9800'
+  on-secondary-container: '#5b3800'
+  tertiary: '#7bd0ff'
+  on-tertiary: '#00354a'
+  tertiary-container: '#009bd1'
+  on-tertiary-container: '#002d40'
+  error: '#ffb4ab'
+  on-error: '#690005'
+  error-container: '#93000a'
+  on-error-container: '#ffdad6'
+  primary-fixed: '#ffdadb'
+  primary-fixed-dim: '#ffb2b7'
+  on-primary-fixed: '#40000d'
+  on-primary-fixed-variant: '#92002a'
+  secondary-fixed: '#ffddb8'
+  secondary-fixed-dim: '#ffb95f'
+  on-secondary-fixed: '#2a1700'
+  on-secondary-fixed-variant: '#653e00'
+  tertiary-fixed: '#c4e7ff'
+  tertiary-fixed-dim: '#7bd0ff'
+  on-tertiary-fixed: '#001e2c'
+  on-tertiary-fixed-variant: '#004c69'
+  background: '#131317'
+  on-background: '#e4e1e7'
+  surface-variant: '#353439'
+typography:
+  display-hero:
+    fontFamily: Syne
+    fontSize: 72px
+    fontWeight: '800'
+    lineHeight: 76px
+    letterSpacing: -0.03em
+  display-hero-mobile:
+    fontFamily: Syne
+    fontSize: 38px
+    fontWeight: '800'
+    lineHeight: 42px
+    letterSpacing: -0.02em
+  headline-xl:
+    fontFamily: Syne
+    fontSize: 48px
+    fontWeight: '700'
+    lineHeight: 54px
+    letterSpacing: -0.02em
+  headline-xl-mobile:
+    fontFamily: Syne
+    fontSize: 30px
+    fontWeight: '700'
+    lineHeight: 36px
+    letterSpacing: -0.01em
+  headline-lg:
+    fontFamily: Syne
+    fontSize: 32px
+    fontWeight: '700'
+    lineHeight: 38px
+    letterSpacing: -0.01em
+  headline-lg-mobile:
+    fontFamily: Syne
+    fontSize: 24px
+    fontWeight: '700'
+    lineHeight: 30px
+    letterSpacing: 0em
+  headline-md:
+    fontFamily: Syne
+    fontSize: 22px
+    fontWeight: '600'
+    lineHeight: 28px
+  title-lg:
+    fontFamily: Plus Jakarta Sans
+    fontSize: 18px
+    fontWeight: '600'
+    lineHeight: 26px
+  body-lg:
+    fontFamily: Plus Jakarta Sans
+    fontSize: 16px
+    fontWeight: '400'
+    lineHeight: 24px
+  body-md:
+    fontFamily: Plus Jakarta Sans
+    fontSize: 14px
+    fontWeight: '400'
+    lineHeight: 20px
+  label-lg:
+    fontFamily: Space Grotesk
+    fontSize: 13px
+    fontWeight: '600'
+    lineHeight: 18px
+    letterSpacing: 0.04em
+  label-sm:
+    fontFamily: Space Grotesk
+    fontSize: 11px
+    fontWeight: '700'
+    lineHeight: 14px
+    letterSpacing: 0.08em
+rounded:
+  sm: 0.25rem
+  DEFAULT: 0.5rem
+  md: 0.75rem
+  lg: 1rem
+  xl: 1.5rem
+  full: 9999px
+spacing:
+  gutter: 1.5rem
+  gutter-sm: 0.75rem
+  gutter-lg: 2rem
+  margin: 2rem
+  margin-mobile: 1rem
+  margin-desktop: 3.5rem
+  space-xs: 0.25rem
+  space-sm: 0.5rem
+  space-md: 1rem
+  space-lg: 1.5rem
+  space-xl: 2.5rem
+---
+
+## Brand & Style
+
+The design system projects an uncompromisingly immersive, high-voltage theatrical atmosphere. Built for discerning cinephiles and digital natives, the design balances the pitch-black drama of an auditorium with luminous, hyper-vibrant neon accents.
+
+### Design Movement & Language
+The aesthetic integrates **Glassmorphism** and **Cinematic High-Contrast Cyber-Editorial**:
+- **Atmospheric Depth:** Deep obsidian canvas planes layered with translucent glass, dramatic vignette gradients, and colored specular glow (neon spill).
+- **Tactile Vibrancy:** Interactive cues behave like laser-lit cinema marquees—energized by electric magenta and warm gold highlights.
+- **Editorial Presence:** Large-scale, poster-inspired typography anchors the canvas, establishing a premium prestige-entertainment feel without sacrificing operational readability.
+
+## Colors
+
+The palette is engineered exclusively for a low-light, high-immersion theater environment.
+
+### Palette Architecture
+- **Primary Canvas & Neutrals:**
+  - Base Obsidian: `#0A0A0E` (Screen backdrop and root surface).
+  - Elevated Container / Glass Base: `#12121A` with deep twilight undertones (`#10172A`).
+  - Ghost Borders & Separators: `rgba(255, 255, 255, 0.08)` to `rgba(244, 63, 94, 0.2)`.
+  - Content Text: `#F8FAFC` (High emphasis), `#94A3B8` (Medium emphasis), `#64748B` (Muted/Captions).
+
+- **Primary Accent (Neon Magenta / Hot Electric Rose):**
+  - Anchor: `#F43F5E` (with glowing tints up to `#FF1493` and `#EC4899`).
+  - Role: Primary calls-to-action, playback progression, focus states, and marquee badges.
+
+- **Secondary Accent (Marquee Cinema Gold):**
+  - Anchor: `#F59E0B` (illuminated variant `#FBBF24`).
+  - Role: Critical critical acclaim scores, VIP/Premiere memberships, laurel wreaths, and ticketing highlights.
+
+- **Tertiary Accent (Atmospheric Cyan / Neon Blue):**
+  - Anchor: `#38BDF8`.
+  - Role: Technical audio/video metadata badges (4K HDR, Dolby Atmos, IMAX Enhanced).
+
+## Typography
+
+The typographic hierarchy establishes clear tension between dramatic poster titles and razor-sharp digital precision.
+
+- **Display & Headlines (`Syne`):** Boasts dramatic, avant-garde geometric structures. Used for featured hero film titles, section headers, and premiere spotlights. It evokes classic 70mm and modern neo-noir poster billing.
+- **Body & Editorial (`Plus Jakarta Sans`):** Clean, warm, contemporary geometric sans designed for legibility at reading lengths across synopses, reviews, cast listings, and settings.
+- **Labels, Badges & Meta (`Space Grotesk`):** Technical, slightly monospaced character shapes used exclusively for metadata (durations, ratings, audio codecs, tags, and micro-navigation). Always displayed uppercase in `label-sm`.
+
+## Layout & Spacing
+
+Layouts follow an edge-to-edge cinematic orientation with an immersive fluid 12-column grid.
+
+### Layout Adaptability
+- **Desktop (1200px+):** 12 columns with `margin-desktop` (3.5rem) and `gutter-lg` (2rem). Film carousels peek off-canvas to invite horizontal discovery. Hero spotlights break gutters using 100vw banners with localized text bounds.
+- **Tablet (768px - 1199px):** 8 columns, `margin` (2rem), `gutter` (1.5rem). Media cards reflow into 3-column rows.
+- **Mobile (< 768px):** 4 columns, `margin-mobile` (1rem), `gutter-sm` (0.75rem). Carousels switch into fluid horizontal snap-scroll rails with trailing card cutoffs.
+
+### Spacing Rhythm
+Vertical section-to-section flow relies on generous macro pauses (`space-xl` scaled dynamically) to mimic trailer pacing, while metadata clusters within cards remain tightly bundled with `space-xs` and `space-sm`.
+
+## Elevation & Depth
+
+Depth is established strictly through light emission and optical refraction rather than traditional opaque drop shadows.
+
+### Glass Surfaces (Backdrop Filter)
+- **Glass Base:** `background: rgba(18, 18, 26, 0.65)` layered with `backdrop-filter: blur(16px)` and a continuous hairline stroke of `rgba(255, 255, 255, 0.08)`.
+- **Active Glass:** `background: rgba(16, 23, 42, 0.8)` layered with `backdrop-filter: blur(24px)` and `border: 1px solid rgba(244, 63, 94, 0.3)`.
+
+### Chromatic & Ambient Glow
+- **Surface Elevation 1 (Card Default):** No shadow; relies entirely on the contrast between `#12121A` and `#0A0A0E`.
+- **Surface Elevation 2 (Card Hover / Floating Tray):** `box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.8), 0 0 16px -2px rgba(244, 63, 94, 0.15)`.
+- **Surface Elevation 3 (Modal / Overlays):** `box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.95), 0 0 32px 0 rgba(244, 63, 94, 0.25)`.
+- **Spotlight Highlights:** Backdrop pseudo-elements render radial gradient flares (`radial-gradient(circle at 50% 0%, rgba(244, 63, 94, 0.15), transparent 70%)`) above featured content.
+
+## Shapes
+
+The geometric framework balances screen proportions with soft modern rounding.
+
+- **Base Corner Radius (`0.5rem` / `8px`):** Used for standard input fields, badges, action chips, and nested inner controls.
+- **Large Radius (`1rem` / `16px`):** The standard for film poster cards, trailer preview boxes, popups, and floating glass menus.
+- **Extra Large Radius (`1.5rem` / `24px`):** Reserved for hero banners, modal sheets, and the main video player control chassis.
+- **Pill Exception:** Pure circular or pill bounds (`rounded-full`) are applied exclusively to icon action buttons (e.g., Play, Add to Watchlist, Mute) and status indicators.
+
+## Components
+
+### Buttons
+- **Primary Hero CTA (Play / Resume):** Filled `#F43F5E` with bold white text. On hover, transitions to a neon bloom (`box-shadow: 0 0 24px rgba(244, 63, 94, 0.6)`) and a scale transform of `1.02`.
+- **Secondary Action (Trailer / Info):** Frosted glass surface (`rgba(255, 255, 255, 0.1)`), hairline border (`rgba(255, 255, 255, 0.2)`), solid white text. Hover initiates a border color change to `#FBBF24` with gold glow.
+- **Icon Actions (Watchlist, Share):** 44px circular frosted buttons with centered vector icons; hover triggers primary accent fill.
+
+### Film & Series Cards
+- **Structure:** 2:3 vertical poster aspect ratio or 16:9 backdrop ratio.
+- **Default State:** Sharp poster visual, subtle inner gradient shadow at bottom edge, subtle 1px border `rgba(255, 255, 255, 0.06)`.
+- **Hover State:** Smooth scale (`scale-105`), z-index jump, illuminated neon magenta rim border (`1px solid #F43F5E`), and bottom glass tray expansion unveiling quick-play controls and rating badges.
+
+### Badges & Metadata Chips
+- **Cinema Gold Tag (Rotten Tomatoes / IMDb / Premiere):** Deep amber-tinted background (`rgba(245, 158, 11, 0.12)`), text `#FBBF24`, hairline border `rgba(245, 158, 11, 0.3)`.
+- **Tech Spec Chip (4K, Atmos, HDR10+):** Dark slate surface (`#10172A`), uppercase text `#38BDF8`, subtle cyan tint.
+
+### Inputs & Search Bars
+- **Style:** Glass trench style (`rgba(10, 10, 14, 0.8)` background, inset `0 2px 4px rgba(0,0,0,0.5)`).
+- **Focus State:** Stroke transition to glowing magenta (`#F43F5E`) with `0 0 12px rgba(244, 63, 94, 0.3)`.
+
+### Checkboxes & Switch Controls
+- **Track/Base:** Dark neutral `#1E293B`.
+- **Active State:** High-saturation `#F43F5E` fill with soft pink halo.
+
+### Media Player Scrubber (Progress Bar)
+- **Track:** 4px tall `rgba(255, 255, 255, 0.2)`.
+- **Buffered Track:** `rgba(255, 255, 255, 0.4)`.
+- **Active Progress:** `#F43F5E` gradient into `#EC4899`, capped by an 8px circular thumb with an active magenta neon beacon.
