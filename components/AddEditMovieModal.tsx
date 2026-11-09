@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Film, Star, Sparkles, Check, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Film, Star, Sparkles, Check, Upload, Link2, Trash2, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { Movie, MoviePreset } from '@/lib/types';
 import { MOVIE_PRESETS } from '@/lib/initialData';
+import { processMoviePosterFile } from '@/lib/imageUtils';
 
 interface AddEditMovieModalProps {
   isOpen: boolean;
@@ -28,6 +29,9 @@ const GENRE_OPTIONS = [
   'Comédia',
 ];
 
+const DEFAULT_POSTER =
+  'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80';
+
 export function AddEditMovieModal({
   isOpen,
   onClose,
@@ -43,10 +47,19 @@ export function AddEditMovieModal({
   const [genre, setGenre] = useState(movieToEdit?.genre || 'Ficção Científica');
   const [rating, setRating] = useState<number>(movieToEdit?.rating || 9.5);
   const [userReview, setUserReview] = useState(movieToEdit?.userReview || '');
-  const [posterUrl, setPosterUrl] = useState(movieToEdit?.posterUrl || '');
   const [duration, setDuration] = useState(movieToEdit?.duration || '2h 15m');
   const [selectedTag, setSelectedTag] = useState(movieToEdit?.tags?.[0] || 'Obra-prima');
   const [selectedTech, setSelectedTech] = useState(movieToEdit?.techSpecs?.[0] || '4K HDR');
+
+  // Poster states: File upload vs URL
+  const initialIsDataUrl = Boolean(movieToEdit?.posterUrl?.startsWith('data:image'));
+  const [posterMode, setPosterMode] = useState<'upload' | 'url'>(initialIsDataUrl ? 'upload' : 'url');
+  const [posterUrl, setPosterUrl] = useState(!initialIsDataUrl ? (movieToEdit?.posterUrl || '') : '');
+  const [uploadedPoster, setUploadedPoster] = useState<string | null>(initialIsDataUrl ? (movieToEdit?.posterUrl || null) : null);
+  const [isUploadingPoster, setIsUploadingPoster] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
@@ -56,6 +69,8 @@ export function AddEditMovieModal({
     setYear(preset.year);
     setGenre(preset.genre);
     setPosterUrl(preset.posterUrl);
+    setUploadedPoster(null);
+    setPosterMode('url');
     setDuration(preset.duration);
     if (!userReview) {
       setUserReview(preset.defaultReview);
@@ -65,13 +80,47 @@ export function AddEditMovieModal({
     }
   };
 
+  const handlePosterFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingPoster(true);
+      setUploadError('');
+      const optimizedPoster = await processMoviePosterFile(file, 400, 600);
+      setUploadedPoster(optimizedPoster);
+      setPosterMode('upload');
+    } catch (err: any) {
+      setUploadError(err?.message || 'Erro ao carregar e recortar o arquivo do pôster.');
+    } finally {
+      setIsUploadingPoster(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveUploadedPoster = () => {
+    setUploadedPoster(null);
+  };
+
+  // Preview target image URL
+  const currentPosterPreview =
+    posterMode === 'upload'
+      ? uploadedPoster
+      : (posterUrl.trim() || null);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const finalPoster =
-      posterUrl.trim() ||
-      'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80';
+    // Use uploaded poster if in upload mode or if available; otherwise use typed URL or fallback
+    let finalPoster = DEFAULT_POSTER;
+    if (posterMode === 'upload' && uploadedPoster) {
+      finalPoster = uploadedPoster;
+    } else if (posterUrl.trim()) {
+      finalPoster = posterUrl.trim();
+    } else if (uploadedPoster) {
+      finalPoster = uploadedPoster;
+    }
 
     const moviePayload = {
       title: title.trim(),
@@ -119,7 +168,7 @@ export function AddEditMovieModal({
             <p className="text-xs sm:text-sm text-slate-400">
               {isEditing
                 ? 'Atualize os dados e sua crítica pessoal sobre a obra'
-                : 'Adicione uma obra especial à sua galeria de cinema'}
+                : 'Adicione uma obra especial à sua galeria de cinema com pôster e resenha'}
             </p>
           </div>
         </div>
@@ -258,7 +307,7 @@ export function AddEditMovieModal({
             />
           </div>
 
-          {/* User Review / Quote (Key requirement from user prompt) */}
+          {/* User Review / Quote */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
               Uma Palavra ou Frase Sobre Este Filme Favorito *
@@ -273,20 +322,151 @@ export function AddEditMovieModal({
             />
           </div>
 
-          {/* Poster Image URL */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
-              <span>URL do Pôster (Opcional - link de imagem)</span>
-              <span className="text-[11px] text-slate-500">Se deixar vazio, usará arte padrão</span>
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={posterUrl}
-                onChange={(e) => setPosterUrl(e.target.value)}
-                placeholder="https://exemplo.com/poster.jpg"
-                className="w-full rounded-lg border border-white/10 bg-black/60 px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:border-[#F43F5E] focus:outline-none focus:ring-1 focus:ring-[#F43F5E]"
-              />
+          {/* ======================================================== */}
+          {/* PÔSTER DO FILME: OPÇÕES DE UPLOAD OU URL DA WEB         */}
+          {/* ======================================================== */}
+          <div className="rounded-2xl border border-white/10 bg-white/3 p-4 space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-white">
+                  Pôster do Filme
+                </label>
+                <p className="text-[11px] text-slate-400">
+                  Envie um arquivo do seu dispositivo ou informe um link direto da web
+                </p>
+              </div>
+
+              {/* Mode Switcher Tabs */}
+              <div className="flex rounded-xl border border-white/10 bg-black/60 p-1 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setPosterMode('upload')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                    posterMode === 'upload'
+                      ? 'bg-[#F43F5E] text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>Fazer Upload</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPosterMode('url')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                    posterMode === 'url'
+                      ? 'bg-[#F43F5E] text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  <span>URL / Link</span>
+                </button>
+              </div>
+            </div>
+
+            {uploadError && (
+              <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-2 text-xs text-red-300 flex items-center gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                <span>{uploadError}</span>
+              </div>
+            )}
+
+            {/* Hidden native file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePosterFileUpload}
+              className="hidden"
+              id="movie-poster-file-input"
+            />
+
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              {/* Live 2:3 Cinematic Poster Preview Thumbnail */}
+              <div className="relative h-28 w-20 rounded-xl overflow-hidden border-2 border-white/15 bg-black/70 shrink-0 shadow-[0_0_15px_rgba(0,0,0,0.8)]">
+                {currentPosterPreview ? (
+                  <img
+                    src={currentPosterPreview}
+                    alt="Pré-visualização do pôster"
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="h-full w-full flex flex-col items-center justify-center p-2 text-center text-slate-500">
+                    <ImageIcon className="h-6 w-6 mb-1 opacity-50" />
+                    <span className="text-[9px] leading-tight">Padrão</span>
+                  </div>
+                )}
+
+                {isUploadingPoster && (
+                  <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#F43F5E] border-t-transparent" />
+                  </div>
+                )}
+              </div>
+
+              {/* Dynamic Content based on selected mode */}
+              <div className="flex-1 w-full space-y-2">
+                {/* 1. UPLOAD MODE */}
+                {posterMode === 'upload' && (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingPoster}
+                        className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/8 px-4 py-2 text-xs font-semibold text-white hover:bg-[#F43F5E]/20 hover:border-[#F43F5E] hover:text-[#F43F5E] transition-all"
+                      >
+                        <Upload className="h-3.5 w-3.5 text-[#FBBF24]" />
+                        <span>{uploadedPoster ? 'Trocar Arquivo do Pôster' : 'Selecionar Imagem do Computador/Celular'}</span>
+                      </button>
+
+                      {uploadedPoster && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveUploadedPoster}
+                          className="flex items-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-400 hover:bg-red-500/20 transition-colors"
+                          title="Remover pôster enviado"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Remover</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-slate-400">
+                      Formatos aceitos: JPG, PNG ou WEBP. A imagem será recortada automaticamente na proporção 2:3 padrão de cinema.
+                    </p>
+
+                    {uploadedPoster && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-[#3ECF8E] font-medium">
+                        <Check className="h-3 w-3" /> Pôster em alta qualidade carregado com sucesso!
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. URL LINK MODE */}
+                {posterMode === 'url' && (
+                  <div className="space-y-1.5">
+                    <div className="relative">
+                      <Link2 className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-500" />
+                      <input
+                        type="url"
+                        value={posterUrl}
+                        onChange={(e) => setPosterUrl(e.target.value)}
+                        placeholder="https://exemplo.com/poster-do-filme.jpg"
+                        className="w-full rounded-xl border border-white/10 bg-black/60 pl-10 pr-3.5 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:border-[#F43F5E] focus:outline-none focus:ring-1 focus:ring-[#F43F5E]"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Cole um link direto para a imagem do pôster. Se deixar em branco, usará uma arte cinematográfica padrão.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -339,7 +519,8 @@ export function AddEditMovieModal({
             </button>
             <button
               type="submit"
-              className="neon-btn-primary flex items-center gap-2 rounded-xl py-2.5 px-6 text-sm font-bold shadow-lg"
+              disabled={isUploadingPoster}
+              className="neon-btn-primary flex items-center gap-2 rounded-xl py-2.5 px-6 text-sm font-bold shadow-lg disabled:opacity-50"
             >
               <Check className="h-4 w-4" />
               {isEditing ? 'Salvar Alterações' : 'Cadastrar aos Favoritos'}

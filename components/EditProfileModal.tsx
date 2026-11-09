@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { X, User as UserIcon, Check, Sparkles, Upload, Camera, Trash2 } from 'lucide-react';
+import { X, User as UserIcon, Check, Sparkles, Upload, Camera, Trash2, LogOut } from 'lucide-react';
 import { User } from '@/lib/types';
 import { processImageFile } from '@/lib/imageUtils';
 
@@ -10,6 +10,8 @@ interface EditProfileModalProps {
   onClose: () => void;
   currentUser: User;
   onUpdateProfile: (updatedData: Partial<User>) => void;
+  onLogout?: () => void;
+  onDeleteProfile?: (userId: string) => void;
 }
 
 const PRESET_AVATARS = [
@@ -39,7 +41,10 @@ export function EditProfileModal({
   onClose,
   currentUser,
   onUpdateProfile,
+  onLogout,
+  onDeleteProfile,
 }: EditProfileModalProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [name, setName] = useState(currentUser.name);
   const [username, setUsername] = useState(currentUser.username);
   const [bio, setBio] = useState(currentUser.bio);
@@ -254,23 +259,109 @@ export function EditProfileModal({
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-white/8">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg px-4 py-2 text-xs font-medium text-slate-400 hover:text-white"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="neon-btn-primary flex items-center gap-2 rounded-xl py-2.5 px-5 text-sm font-bold shadow-md"
-            >
-              <Check className="h-4 w-4" />
-              Salvar Perfil
-            </button>
+          {/* Zona de Perigo: Excluir Perfil */}
+          {onDeleteProfile && (
+            <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-3.5 space-y-2 mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Zona de Perigo
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/20 hover:text-white transition-colors"
+                >
+                  Excluir Perfil
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Ao excluir o perfil, sua conta, filmes favoritados e recados serão removidos definitivamente.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-white/8">
+            {onLogout ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onLogout();
+                }}
+                className="flex items-center gap-1.5 text-xs font-semibold text-red-400 hover:text-red-300 py-1 transition-colors self-start sm:self-auto"
+                title="Encerrar sessão deste perfil para acessar com outro usuário"
+              >
+                <LogOut className="h-3.5 w-3.5 text-red-400" />
+                <span>Sair / Fazer Logoff da Conta</span>
+              </button>
+            ) : <div />}
+
+            <div className="flex items-center gap-3 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg px-4 py-2 text-xs font-medium text-slate-400 hover:text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="neon-btn-primary flex items-center gap-2 rounded-xl py-2.5 px-5 text-sm font-bold shadow-md"
+              >
+                <Check className="h-4 w-4" />
+                Salvar Perfil
+              </button>
+            </div>
           </div>
         </form>
+
+        {/* Modal de Confirmação de Exclusão */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+            <div className="relative w-full max-w-md rounded-2xl border border-red-500/30 bg-[#141014] p-6 shadow-2xl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-600/20 border border-red-500/30 text-red-400">
+                  <Trash2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-base font-bold text-white">
+                    Confirmar Exclusão de Perfil?
+                  </h3>
+                  <p className="text-xs text-red-300">
+                    @{currentUser.username}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-300 mb-5 leading-relaxed">
+                Esta ação apagará permanentemente o perfil de <b>{currentUser.name}</b>, todos os filmes cadastrados e histórico de mensagens. Esta ação não poderá ser desfeita.
+              </p>
+
+              <div className="flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="rounded-xl px-4 py-2 text-xs text-slate-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    onClose();
+                    onDeleteProfile?.(currentUser.id);
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 text-xs shadow-md transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Sim, Excluir Definitivamente</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Film, Plus, Users, User as UserIcon, Sparkles, LogOut } from 'lucide-react';
+import { Film, Plus, Users, User as UserIcon, Sparkles, LogOut, Database } from 'lucide-react';
 import { User } from '@/lib/types';
 
 interface NavbarProps {
@@ -16,6 +16,7 @@ interface NavbarProps {
   onOpenCommunity: () => void;
   onResetData: () => void;
   onLogout: () => void;
+  onOpenSupabaseConfig?: () => void;
 }
 
 export function Navbar({
@@ -29,6 +30,7 @@ export function Navbar({
   onGoToMyProfile,
   onOpenCommunity,
   onLogout,
+  onOpenSupabaseConfig,
 }: NavbarProps) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/8 bg-[#0A0A0E]/85 backdrop-blur-md">
@@ -130,6 +132,19 @@ export function Navbar({
             </div>
             <Sparkles className="h-3.5 w-3.5 text-[#FBBF24] hidden sm:block" />
           </button>
+
+          {/* Supabase status / config button */}
+          {onOpenSupabaseConfig && (
+            <button
+              onClick={onOpenSupabaseConfig}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 p-2 text-[#3ECF8E] hover:border-[#3ECF8E]/40 hover:bg-[#3ECF8E]/10 transition-colors"
+              title="Configurar variáveis de conexão do Supabase"
+              aria-label="Configurar Supabase"
+            >
+              <Database className="h-4 w-4" />
+              <span className="hidden xl:inline text-xs font-mono">Supabase</span>
+            </button>
+          )}
 
           {/* Sair / Logout button */}
           <button

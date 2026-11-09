@@ -13,9 +13,10 @@ import { GuestbookComments } from '@/components/GuestbookComments';
 import { CommunityProfiles } from '@/components/CommunityProfiles';
 import { AuthModal } from '@/components/AuthModal';
 import { LoginScreen } from '@/components/LoginScreen';
+import { SupabaseConfigModal } from '@/components/SupabaseConfigModal';
 import { ToastNotification } from '@/components/ToastNotification';
 import { Movie } from '@/lib/types';
-import { Film, Search, Plus, Filter, Sparkles, MessageSquare } from 'lucide-react';
+import { Film, Search, Plus, Filter, Sparkles, MessageSquare, Database } from 'lucide-react';
 
 export default function HomePage() {
   const {
@@ -35,6 +36,8 @@ export default function HomePage() {
     switchUser,
     loginAsGuest,
     registerUser,
+    registerWithEmail,
+    loginWithEmail,
     logout,
     updateProfile,
     toggleFollowUser,
@@ -45,6 +48,8 @@ export default function HomePage() {
     addComment,
     toggleLikeComment,
     deleteComment,
+    deleteUserProfile,
+    switchUserWithPassword,
     resetToDefault,
   } = useMovieSocial();
 
@@ -57,6 +62,7 @@ export default function HomePage() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [selectedMovieForDetails, setSelectedMovieForDetails] = useState<Movie | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isSupabaseConfigOpen, setIsSupabaseConfigOpen] = useState(false);
 
   // Filter & Search inside movies tab
   const [searchQuery, setSearchQuery] = useState('');
@@ -133,7 +139,16 @@ export default function HomePage() {
           allMovies={movies}
           onLoginAsGuest={loginAsGuest}
           onRegisterUser={registerUser}
+          onRegisterWithEmail={registerWithEmail}
+          onLoginWithEmail={loginWithEmail}
           onSelectExistingUser={switchUser}
+          onSelectExistingUserWithPassword={switchUserWithPassword}
+          onOpenSupabaseConfig={() => setIsSupabaseConfigOpen(true)}
+        />
+        <SupabaseConfigModal
+          key={isSupabaseConfigOpen ? 'config-open' : 'config-closed'}
+          isOpen={isSupabaseConfigOpen}
+          onClose={() => setIsSupabaseConfigOpen(false)}
         />
         <ToastNotification toast={toastMessage} />
       </>
@@ -155,6 +170,7 @@ export default function HomePage() {
         onOpenCommunity={() => setActiveTab('community')}
         onResetData={resetToDefault}
         onLogout={logout}
+        onOpenSupabaseConfig={() => setIsSupabaseConfigOpen(true)}
       />
 
       {/* Main Container */}
@@ -186,6 +202,9 @@ export default function HomePage() {
           onOpenEditProfile={() => setIsEditProfileOpen(true)}
           onToggleFollow={toggleFollowUser}
           onGoBackToMyProfile={() => visitProfile(currentUser.id)}
+          onLogout={logout}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onDeleteProfile={deleteUserProfile}
         />
 
         {/* Tab 1: Favorite Movies Gallery */}
@@ -331,6 +350,15 @@ export default function HomePage() {
           <div className="flex items-center gap-4">
             <button
               type="button"
+              onClick={() => setIsSupabaseConfigOpen(true)}
+              className="text-[#3ECF8E] hover:underline flex items-center gap-1.5 font-medium"
+            >
+              <Database className="h-3.5 w-3.5" />
+              <span>Conexão Supabase (.env)</span>
+            </button>
+            <span aria-hidden="true">·</span>
+            <button
+              type="button"
               onClick={resetToDefault}
               className="hover:text-slate-300 underline"
             >
@@ -367,6 +395,8 @@ export default function HomePage() {
         onClose={() => setIsEditProfileOpen(false)}
         currentUser={currentUser}
         onUpdateProfile={updateProfile}
+        onLogout={logout}
+        onDeleteProfile={deleteUserProfile}
       />
 
       <MovieDetailsModal
@@ -385,9 +415,17 @@ export default function HomePage() {
         currentUser={currentUser}
         allUsers={users}
         onSwitchUser={switchUser}
+        onSwitchUserWithPassword={switchUserWithPassword}
         onLoginAsGuest={loginAsGuest}
         onRegisterUser={registerUser}
         onResetData={resetToDefault}
+        onLogout={logout}
+      />
+
+      <SupabaseConfigModal
+        key={isSupabaseConfigOpen ? 'config-open-bottom' : 'config-closed-bottom'}
+        isOpen={isSupabaseConfigOpen}
+        onClose={() => setIsSupabaseConfigOpen(false)}
       />
 
       {/* Toast feedback notification */}

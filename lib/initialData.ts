@@ -3,6 +3,7 @@ import { User, Movie, ProfileComment, MoviePreset } from './types';
 export const INITIAL_USERS: User[] = [
   {
     id: 'user-lucas',
+    email: 'lucas@cinelumina.com',
     name: 'Lucas Mendes',
     username: 'lucas_cine',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
@@ -14,9 +15,11 @@ export const INITIAL_USERS: User[] = [
     followersCount: 148,
     followingCount: 62,
     isGuest: false,
+    password: '123456',
   },
   {
     id: 'user-beatriz',
+    email: 'beatriz@cinelumina.com',
     name: 'Beatriz Lima',
     username: 'beatriz_noir',
     avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
@@ -28,9 +31,11 @@ export const INITIAL_USERS: User[] = [
     followersCount: 312,
     followingCount: 89,
     isGuest: false,
+    password: '123456',
   },
   {
     id: 'user-rodrigo',
+    email: 'rodrigo@cinelumina.com',
     name: 'Rodrigo Rocha',
     username: 'rodrigo_cult',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
@@ -42,9 +47,11 @@ export const INITIAL_USERS: User[] = [
     followersCount: 225,
     followingCount: 110,
     isGuest: false,
+    password: '123456',
   },
   {
     id: 'user-camila',
+    email: 'camila@cinelumina.com',
     name: 'Camila Duarte',
     username: 'camila_frames',
     avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
@@ -56,9 +63,11 @@ export const INITIAL_USERS: User[] = [
     followersCount: 194,
     followingCount: 75,
     isGuest: false,
+    password: '123456',
   },
   {
     id: 'user-guest',
+    email: 'visitante@cinelumina.com',
     name: 'Visitante Cinéfilo',
     username: 'visitante_anonimo',
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',

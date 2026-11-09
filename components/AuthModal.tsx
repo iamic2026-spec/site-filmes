@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef } from 'react';
-import { X, UserCheck, Sparkles, UserPlus, LogIn, Film, Check, ShieldCheck, Upload, Trash2 } from 'lucide-react';
+import { X, UserCheck, Sparkles, UserPlus, LogIn, Film, Check, ShieldCheck, Upload, Trash2, LogOut, Lock, Eye, EyeOff, Key } from 'lucide-react';
 import { User } from '@/lib/types';
 import { processImageFile } from '@/lib/imageUtils';
 
@@ -10,6 +10,7 @@ interface AuthModalProps {
   currentUser: User;
   allUsers: User[];
   onSwitchUser: (userId: string) => void;
+  onSwitchUserWithPassword?: (userId: string, password?: string) => boolean;
   onLoginAsGuest: () => void;
   onRegisterUser: (userData: {
     name: string;
@@ -17,8 +18,10 @@ interface AuthModalProps {
     bio: string;
     avatar?: string;
     favoriteGenres: string[];
+    password?: string;
   }) => void;
   onResetData: () => void;
+  onLogout?: () => void;
 }
 
 const PRESET_AVATARS = [
@@ -49,9 +52,11 @@ export function AuthModal({
   currentUser,
   allUsers,
   onSwitchUser,
+  onSwitchUserWithPassword,
   onLoginAsGuest,
   onRegisterUser,
   onResetData,
+  onLogout,
 }: AuthModalProps) {
   const [mode, setMode] = useState<'guest' | 'register' | 'switch'>('guest');
 
@@ -59,11 +64,19 @@ export function AuthModal({
   const [regName, setRegName] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regBio, setRegBio] = useState('');
+  const [regPassword, setRegPassword] = useState('123456');
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(PRESET_AVATARS[0]);
   const [uploadedAvatar, setUploadedAvatar] = useState<string | null>(null);
   const [selectedGenres, setSelectedGenres] = useState<string[]>(['Ficção Científica', 'Drama']);
   const [errorMsg, setErrorMsg] = useState('');
   const [isProcessingUpload, setIsProcessingUpload] = useState(false);
+
+  // Switch user password state
+  const [selectedUserToSwitch, setSelectedUserToSwitch] = useState<User | null>(null);
+  const [switchPassword, setSwitchPassword] = useState('');
+  const [showSwitchPassword, setShowSwitchPassword] = useState(false);
+  const [switchError, setSwitchError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -105,8 +118,56 @@ export function AuthModal({
       bio: regBio,
       avatar: uploadedAvatar || selectedAvatar,
       favoriteGenres: selectedGenres,
+      password: regPassword.trim() || '123456',
     });
     onClose();
+  };
+
+  const handleSelectUserToSwitch = (user: User) => {
+    if (user.id === currentUser.id) return;
+    if (user.isGuest) {
+      if (onSwitchUserWithPassword) {
+        onSwitchUserWithPassword(user.id);
+      } else {
+        onSwitchUser(user.id);
+      }
+      onClose();
+      return;
+    }
+    setSelectedUserToSwitch(user);
+    setSwitchPassword('');
+    setSwitchError('');
+  };
+
+  const handleConfirmSwitchWithPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserToSwitch) return;
+    setSwitchError('');
+
+    const expectedPassword = selectedUserToSwitch.password || '123456';
+    const enteredPassword = switchPassword.trim();
+
+    if (!enteredPassword) {
+      setSwitchError('Por favor, informe a senha de acesso.');
+      return;
+    }
+
+    if (enteredPassword !== expectedPassword) {
+      setSwitchError(`Senha incorreta para @${selectedUserToSwitch.username}. Tente novamente.`);
+      return;
+    }
+
+    try {
+      if (onSwitchUserWithPassword) {
+        onSwitchUserWithPassword(selectedUserToSwitch.id, enteredPassword);
+      } else {
+        onSwitchUser(selectedUserToSwitch.id);
+      }
+      setSelectedUserToSwitch(null);
+      onClose();
+    } catch (err: any) {
+      setSwitchError(err?.message || 'Senha incorreta para este perfil.');
+    }
   };
 
   return (
@@ -276,6 +337,28 @@ export function AuthModal({
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Senha de Acesso (para entrar novamente depois)
+              </label>
+              <div className="relative">
+                <input
+                  type={showRegPassword ? 'text' : 'password'}
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres (padrão: 123456)"
+                  className="w-full rounded-lg border border-white/10 bg-black/60 pl-3.5 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#F43F5E] focus:outline-none focus:ring-1 focus:ring-[#F43F5E]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-white"
+                >
+                  {showRegPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
             {/* Choose or Upload Avatar */}
             <div className="space-y-3 rounded-2xl border border-white/8 bg-white/3 p-3.5">
               <div className="flex items-center justify-between">
@@ -418,81 +501,185 @@ export function AuthModal({
         {/* Tab 3: Switch User / Demo Accounts */}
         {mode === 'switch' && (
           <div className="space-y-4">
-            <p className="text-xs text-slate-400">
-              Selecione qualquer cinéfilo abaixo para testar a experiência de navegar e comentar como usuários diferentes:
-            </p>
-
-            <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
-              {allUsers.map((user) => {
-                const isCurrent = currentUser.id === user.id;
-                return (
-                  <div
-                    key={user.id}
-                    onClick={() => {
-                      onSwitchUser(user.id);
-                      onClose();
-                    }}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                      isCurrent
-                        ? 'border-[#F43F5E] bg-[#F43F5E]/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
-                        : 'border-white/8 bg-white/5 hover:border-white/20 hover:bg-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="h-10 w-10 rounded-full object-cover border border-white/20"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-white text-sm">
-                            {user.name}
+            {selectedUserToSwitch ? (
+              <form onSubmit={handleConfirmSwitchWithPassword} className="space-y-4">
+                <div className="rounded-xl border border-[#F43F5E]/30 bg-[#F43F5E]/10 p-4">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={selectedUserToSwitch.avatar}
+                      alt={selectedUserToSwitch.name}
+                      className="h-12 w-12 rounded-full object-cover border-2 border-[#F43F5E] shadow-sm"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white text-base">
+                          {selectedUserToSwitch.name}
+                        </span>
+                        {selectedUserToSwitch.badge && (
+                          <span className="text-[10px] text-[#FBBF24] font-meta uppercase tracking-wider">
+                            {selectedUserToSwitch.badge}
                           </span>
-                          {user.badge && (
-                            <span className="text-[10px] text-[#FBBF24] font-meta uppercase tracking-wider">
-                              {user.badge}
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-300">@{selectedUserToSwitch.username}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {switchError && (
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-2.5 text-xs text-red-300">
+                    {switchError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Digite a Senha para Acessar este Perfil *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSwitchPassword ? 'text' : 'password'}
+                      autoFocus
+                      required
+                      value={switchPassword}
+                      onChange={(e) => {
+                        setSwitchPassword(e.target.value);
+                        setSwitchError('');
+                      }}
+                      placeholder="Senha do perfil..."
+                      className="w-full rounded-lg border border-white/10 bg-black/60 pl-3.5 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#F43F5E] focus:outline-none focus:ring-1 focus:ring-[#F43F5E]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSwitchPassword(!showSwitchPassword)}
+                      className="absolute right-3 top-3 text-slate-400 hover:text-white"
+                    >
+                      {showSwitchPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <Key className="h-3 w-3 text-[#FBBF24] shrink-0" />
+                    <span>Dica para perfis de teste: a senha padrão é <strong className="text-white">123456</strong></span>
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedUserToSwitch(null);
+                      setSwitchPassword('');
+                      setSwitchError('');
+                    }}
+                    className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-slate-300 hover:bg-white/10 transition-colors"
+                  >
+                    Voltar à Lista
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 neon-btn-primary flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-xs font-bold shadow-lg"
+                  >
+                    <Lock className="h-3.5 w-3.5" />
+                    Confirmar e Entrar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <p className="text-xs text-slate-400">
+                  Selecione qualquer cinéfilo abaixo para acessar seu perfil (será solicitada a senha da conta):
+                </p>
+
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                  {allUsers.map((user) => {
+                    const isCurrent = currentUser.id === user.id;
+                    return (
+                      <div
+                        key={user.id}
+                        onClick={() => handleSelectUserToSwitch(user)}
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                          isCurrent
+                            ? 'border-[#F43F5E] bg-[#F43F5E]/10 shadow-[0_0_15px_rgba(244,63,94,0.15)] cursor-default'
+                            : 'border-white/8 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={user.avatar}
+                            alt={user.name}
+                            className="h-10 w-10 rounded-full object-cover border border-white/20"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-white text-sm">
+                                {user.name}
+                              </span>
+                              {user.badge && (
+                                <span className="text-[10px] text-[#FBBF24] font-meta uppercase tracking-wider">
+                                  {user.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400">@{user.username}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {isCurrent ? (
+                            <span className="flex items-center gap-1 text-xs text-[#F43F5E] font-medium">
+                              <UserCheck className="h-4 w-4" />
+                              Ativo
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white">
+                              {!user.isGuest && <Lock className="h-3 w-3 text-slate-500" />}
+                              <span>{user.isGuest ? 'Entrar direto' : 'Pedir senha &rarr;'}</span>
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400">@{user.username}</p>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
-                    <div className="flex items-center gap-2">
-                      {isCurrent ? (
-                        <span className="flex items-center gap-1 text-xs text-[#F43F5E] font-medium">
-                          <UserCheck className="h-4 w-4" />
-                          Conectado
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400 hover:text-white">
-                          Conectar &rarr;
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {onLogout && !selectedUserToSwitch && (
+              <div className="pt-3 border-t border-white/8">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onLogout();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-300 hover:text-white py-2.5 text-xs font-semibold transition-colors"
+                >
+                  <LogOut className="h-4 w-4 text-red-400" />
+                  <span>Fazer Logoff e Voltar à Tela de Login</span>
+                </button>
+              </div>
+            )}
 
-            <div className="pt-2 border-t border-white/8 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={onResetData}
-                className="text-xs text-slate-500 hover:text-slate-300 underline"
-              >
-                Restaurar dados iniciais de fábrica
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('register')}
-                className="text-xs text-[#F43F5E] hover:underline font-medium"
-              >
-                + Criar novo perfil
-              </button>
-            </div>
+            {!selectedUserToSwitch && (
+              <div className="pt-2 border-t border-white/8 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={onResetData}
+                  className="text-xs text-slate-500 hover:text-slate-300 underline"
+                >
+                  Restaurar dados iniciais de fábrica
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('register')}
+                  className="text-xs text-[#F43F5E] hover:underline font-medium"
+                >
+                  + Criar novo perfil
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

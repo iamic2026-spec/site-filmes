@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { User, Movie, ProfileComment } from '@/lib/types';
 import { INITIAL_USERS, INITIAL_MOVIES, INITIAL_COMMENTS } from '@/lib/initialData';
+import { getSupabaseClient, getSupabaseCredentials } from '@/lib/supabase';
 
 const emptySubscribe = () => () => {};
 
@@ -25,7 +26,21 @@ export function useMovieSocial() {
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem(STORAGE_KEYS.USERS);
-        if (stored) return JSON.parse(stored);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((u: User) => {
+              if (!u.isGuest && !u.password) {
+                const initMatch = INITIAL_USERS.find((init) => init.id === u.id);
+                return {
+                  ...u,
+                  password: initMatch?.password || '123456',
+                };
+              }
+              return u;
+            });
+          }
+        }
       } catch {}
     }
     return INITIAL_USERS;
@@ -170,25 +185,72 @@ export function useMovieSocial() {
     showToast('Acesso de Visitante liberado! Você já pode cadastrar filmes e comentar.', 'success');
   }, [users, showToast]);
 
-  // Register new user account
-  const registerUser = useCallback((userData: {
-    name: string;
-    username: string;
-    bio: string;
-    avatar?: string;
-    favoriteGenres: string[];
-  }) => {
-    const cleanUsername = userData.username.replace('@', '').trim().toLowerCase();
+  // Register new user account with email and Supabase integration
+  const registerWithEmail = useCallback(async (
+    email: string,
+    password?: string,
+    userData?: {
+      name: string;
+      username: string;
+      bio: string;
+      avatar?: string;
+      favoriteGenres: string[];
+    }
+  ) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const name = userData?.name.trim() || cleanEmail.split('@')[0];
+    const username = (userData?.username || cleanEmail.split('@')[0]).replace('@', '').toLowerCase();
+    const bio = userData?.bio?.trim() || 'Amante da sétima arte compartilhando meus filmes favoritos no CineLumina.';
+    const avatar = userData?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
+    const favoriteGenres = userData?.favoriteGenres && userData.favoriteGenres.length > 0
+      ? userData.favoriteGenres
+      : ['Ficção Científica', 'Drama'];
+
+    const supabase = getSupabaseClient();
+    let supabaseId: string | null = null;
+
+    if (supabase && password) {
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: {
+            data: {
+              name,
+              username,
+              bio,
+              avatar,
+              favoriteGenres,
+            },
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data.user) {
+          supabaseId = data.user.id;
+        }
+      } catch (err: any) {
+        console.warn('Supabase Auth error:', err);
+        // Display toast error or proceed to local sync
+        showToast(err.message || 'Aviso do Supabase. Salvando localmente.', 'info');
+      }
+    }
+
     const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: userData.name.trim(),
-      username: cleanUsername || `cinefilo_${Date.now().toString().slice(-4)}`,
-      avatar: userData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      id: supabaseId ? `sb-${supabaseId}` : `user-${Date.now()}`,
+      email: cleanEmail,
+      password: password || '123456',
+      name,
+      username,
+      avatar,
       coverImage: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80',
-      bio: userData.bio.trim() || 'Amante da sétima arte compartilhando meus filmes favoritos no CineLumina.',
-      favoriteGenres: userData.favoriteGenres.length ? userData.favoriteGenres : ['Ficção Científica', 'Drama'],
+      bio,
+      favoriteGenres,
       joinedDate: 'Hoje',
-      badge: 'Novo Cinéfilo',
+      badge: supabaseId ? 'Cinéfilo Supabase' : 'Novo Cinéfilo',
       followersCount: 0,
       followingCount: 0,
       isGuest: false,
@@ -198,11 +260,171 @@ export function useMovieSocial() {
     setCurrentUserId(newUser.id);
     setViewingUserId(newUser.id);
     setIsAuthenticated(true);
-    showToast(`Bem-vindo(a) ao CineLumina, ${newUser.name}! Seu cadastro foi realizado com sucesso.`, 'success');
+    showToast(`Bem-vindo(a) ao CineLumina, ${newUser.name}! Cadastro concluído com sucesso.`, 'success');
+    return newUser;
   }, [showToast]);
+
+  // Legacy registerUser adapter
+  const registerUser = useCallback((userData: {
+    name: string;
+    username: string;
+    bio: string;
+    avatar?: string;
+    favoriteGenres: string[];
+  }) => {
+    const generatedEmail = `${userData.username.replace(/[^a-z0-9_]/g, '') || 'usuario'}@cinelumina.com`;
+    return registerWithEmail(generatedEmail, '123456', userData);
+  }, [registerWithEmail]);
+
+  // Login with email or username with strict password check
+  const loginWithEmail = useCallback(async (identifier: string, password?: string) => {
+    const cleanId = identifier.trim().toLowerCase();
+    const cleanPassword = password ? password.trim() : '';
+
+    if (!cleanId) {
+      throw new Error('Por favor, informe seu e-mail ou nome de usuário.');
+    }
+    if (!cleanPassword) {
+      throw new Error('Por favor, informe a senha de acesso.');
+    }
+
+    const supabase = getSupabaseClient();
+
+    if (supabase && cleanId.includes('@')) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanId,
+          password: cleanPassword,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data.user) {
+          const existing = users.find((u) => u.email === cleanId || u.id === `sb-${data.user.id}`);
+          if (existing) {
+            setCurrentUserId(existing.id);
+            setViewingUserId(existing.id);
+          } else {
+            const meta = data.user.user_metadata || {};
+            const newUser: User = {
+              id: `sb-${data.user.id}`,
+              email: cleanId,
+              password: cleanPassword,
+              name: meta.name || cleanId.split('@')[0],
+              username: meta.username || cleanId.split('@')[0],
+              avatar: meta.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+              bio: meta.bio || 'Cinéfilo conectado com Supabase.',
+              favoriteGenres: meta.favoriteGenres || ['Ficção Científica'],
+              joinedDate: 'Hoje',
+              badge: 'Cinéfilo Supabase',
+              followersCount: 0,
+              followingCount: 0,
+              isGuest: false,
+            };
+            setUsers((prev) => [newUser, ...prev]);
+            setCurrentUserId(newUser.id);
+            setViewingUserId(newUser.id);
+          }
+          setIsAuthenticated(true);
+          showToast(`Conectado com sucesso pelo Supabase!`, 'success');
+          return true;
+        }
+      } catch (err: any) {
+        console.warn('Erro ao autenticar com Supabase:', err);
+        if (err?.message && (err.message.includes('Invalid') || err.message.includes('credentials') || err.message.includes('password'))) {
+          throw new Error('E-mail ou senha incorretos. Verifique e tente novamente.');
+        }
+      }
+    }
+
+    // Match in local users by email or username
+    const matched = users.find(
+      (u) =>
+        (u.email && u.email.toLowerCase() === cleanId) ||
+        u.username.toLowerCase() === cleanId.replace('@', '')
+    );
+
+    if (matched) {
+      // Validate password strictly: non-guest users MUST have correct password
+      if (!matched.isGuest) {
+        const expectedPassword = matched.password || '123456';
+        if (cleanPassword !== expectedPassword) {
+          throw new Error(`Senha incorreta para a conta @${matched.username}. Tente novamente.`);
+        }
+      }
+
+      setCurrentUserId(matched.id);
+      setViewingUserId(matched.id);
+      setIsAuthenticated(true);
+      showToast(`Conectado com sucesso como ${matched.name}!`, 'success');
+      return true;
+    }
+
+    throw new Error('Nenhuma conta encontrada com este e-mail ou usuário. Crie seu cadastro na aba "Criar Cadastro".');
+  }, [users, showToast]);
+
+  // Switch to an account requiring its password
+  const switchUserWithPassword = useCallback((userId: string, password?: string) => {
+    const userToSwitch = users.find((u) => u.id === userId);
+    if (!userToSwitch) {
+      throw new Error('Perfil não encontrado.');
+    }
+
+    if (!userToSwitch.isGuest) {
+      const expectedPassword = userToSwitch.password || '123456';
+      const cleanPassword = password ? password.trim() : '';
+      if (!cleanPassword) {
+        throw new Error(`Por favor, digite a senha de ${userToSwitch.name}.`);
+      }
+      if (cleanPassword !== expectedPassword) {
+        throw new Error(`Senha incorreta para a conta @${userToSwitch.username}.`);
+      }
+    }
+
+    setCurrentUserId(userId);
+    setViewingUserId(userId);
+    setIsAuthenticated(true);
+    showToast(`Conectado como ${userToSwitch.name}!`, 'info');
+    return true;
+  }, [users, showToast]);
+
+  // Delete user profile and its associated data
+  const deleteUserProfile = useCallback((userIdToDelete: string) => {
+    // 1. Remove user from users list
+    setUsers((prev) => prev.filter((u) => u.id !== userIdToDelete));
+
+    // 2. Remove all movies registered by this user
+    setMovies((prev) => prev.filter((m) => m.userId !== userIdToDelete));
+
+    // 3. Remove all comments on this profile or written by this profile
+    setComments((prev) =>
+      prev.filter((c) => c.profileUserId !== userIdToDelete && c.authorId !== userIdToDelete)
+    );
+
+    // 4. Remove from followed users
+    setFollowedUserIds((prev) => prev.filter((id) => id !== userIdToDelete));
+
+    // 5. If this was the currently active user, log out immediately
+    if (currentUserId === userIdToDelete) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase.auth.signOut().catch(() => {});
+      }
+      setIsAuthenticated(false);
+      showToast('Seu perfil e todos os filmes cadastrados foram excluídos.', 'info');
+    } else {
+      showToast('Perfil removido com sucesso.', 'info');
+    }
+  }, [currentUserId, showToast]);
 
   // Logout method
   const logout = useCallback(() => {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.auth.signOut().catch(() => {});
+    }
     setIsAuthenticated(false);
     showToast('Você encerrou a sessão. Até logo, cinéfilo!', 'info');
   }, [showToast]);
@@ -349,6 +571,8 @@ export function useMovieSocial() {
     switchUser,
     loginAsGuest,
     registerUser,
+    registerWithEmail,
+    loginWithEmail,
     logout,
     updateProfile,
     toggleFollowUser,
@@ -359,6 +583,8 @@ export function useMovieSocial() {
     addComment,
     toggleLikeComment,
     deleteComment,
+    deleteUserProfile,
+    switchUserWithPassword,
     resetToDefault,
   };
 }

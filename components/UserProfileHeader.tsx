@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { User, Movie, ProfileComment } from '@/lib/types';
-import { Film, MessageSquare, Plus, Edit, UserPlus, Check, ArrowLeft, Star, Heart } from 'lucide-react';
+import { Film, MessageSquare, Plus, Edit, UserPlus, Check, ArrowLeft, Star, Heart, LogOut, Users, X, AlertCircle, Trash2 } from 'lucide-react';
 
 interface UserProfileHeaderProps {
   viewingUser: User;
@@ -17,6 +17,9 @@ interface UserProfileHeaderProps {
   onOpenEditProfile: () => void;
   onToggleFollow: (userId: string) => void;
   onGoBackToMyProfile: () => void;
+  onLogout?: () => void;
+  onOpenAuth?: () => void;
+  onDeleteProfile?: (userId: string) => void;
 }
 
 export function UserProfileHeader({
@@ -32,7 +35,13 @@ export function UserProfileHeader({
   onOpenEditProfile,
   onToggleFollow,
   onGoBackToMyProfile,
+  onLogout,
+  onOpenAuth,
+  onDeleteProfile,
 }: UserProfileHeaderProps) {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const avgRating =
     movies.length > 0
       ? (movies.reduce((acc, m) => acc + m.rating, 0) / movies.length).toFixed(1)
@@ -141,6 +150,42 @@ export function UserProfileHeader({
                   <Plus className="h-4 w-4" />
                   <span>Cadastrar Filme</span>
                 </button>
+
+                {onOpenAuth && (
+                  <button
+                    type="button"
+                    onClick={onOpenAuth}
+                    className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 py-2.5 px-3.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:border-[#38BDF8] hover:text-[#38BDF8] transition-all"
+                    title="Acessar com outro usuário ou cadastrar nova conta"
+                  >
+                    <Users className="h-3.5 w-3.5 text-[#38BDF8]" />
+                    <span className="hidden sm:inline">Trocar Usuário</span>
+                  </button>
+                )}
+
+                {onLogout && (
+                  <button
+                    type="button"
+                    onClick={() => setShowLogoutConfirm(true)}
+                    className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 py-2.5 px-3.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition-all shadow-sm"
+                    title="Fazer logoff ou sair do perfil para acessar com outro usuário"
+                  >
+                    <LogOut className="h-3.5 w-3.5 text-slate-400" />
+                    <span>Sair / Logoff</span>
+                  </button>
+                )}
+
+                {onDeleteProfile && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 py-2.5 px-3 text-xs font-semibold text-red-400 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white transition-all shadow-sm"
+                    title="Excluir permanentemente este perfil e seus filmes"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Excluir Perfil</span>
+                  </button>
+                )}
               </>
             ) : (
               <>
@@ -267,6 +312,142 @@ export function UserProfileHeader({
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal: Sair do Perfil / Logoff */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="relative w-full max-w-md rounded-3xl border border-white/12 bg-[#12121A] p-6 sm:p-7 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.98),0_0_32px_0_rgba(244,63,94,0.25)]">
+            <button
+              type="button"
+              onClick={() => setShowLogoutConfirm(false)}
+              className="absolute right-4 top-4 rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/15 border border-red-500/30 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.25)] shrink-0">
+                <LogOut className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-display text-lg font-bold text-white tracking-tight">
+                  Sair do Perfil?
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Encerrar sessão de @{viewingUser.username}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-6">
+              Você será desconectado da conta de <b>{viewingUser.name}</b> e retornará para a tela inicial de login, onde poderá entrar com outro e-mail e senha, criar um novo cadastro ou acessar como visitante.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  onLogout?.();
+                }}
+                className="w-full sm:flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-4 text-xs shadow-md transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sim, Fazer Logoff</span>
+              </button>
+
+              {onOpenAuth && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLogoutConfirm(false);
+                    onOpenAuth();
+                  }}
+                  className="w-full sm:flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white font-semibold py-2.5 px-3 text-xs transition-colors"
+                >
+                  <Users className="h-3.5 w-3.5 text-[#38BDF8]" />
+                  <span>Trocar Usuário</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="w-full sm:w-auto rounded-xl px-4 py-2.5 text-xs text-slate-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: Excluir Perfil Definitivamente */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="relative w-full max-w-md rounded-3xl border border-red-500/30 bg-[#141014] p-6 sm:p-7 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.98),0_0_36px_0_rgba(239,68,68,0.3)]">
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(false)}
+              className="absolute right-4 top-4 rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-600/20 border border-red-500/40 text-red-400 shadow-[0_0_24px_rgba(239,68,68,0.35)] shrink-0">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-display text-lg font-bold text-white tracking-tight">
+                  Excluir Perfil Definitivamente?
+                </h3>
+                <p className="text-xs text-red-300 font-medium">
+                  Ação irreversível de exclusão
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-6 text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <p>
+                Tem certeza que deseja apagar a conta de <b>{viewingUser.name}</b> (@{viewingUser.username})?
+              </p>
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-200 space-y-1">
+                <p className="font-semibold text-red-300">Ao confirmar a exclusão:</p>
+                <ul className="list-disc list-inside space-y-0.5 text-slate-300">
+                  <li>Seu perfil será permanentemente removido da rede.</li>
+                  <li>Todos os seus filmes favoritados ({movies.length}) serão apagados.</li>
+                  <li>Todos os recados deixados no seu mural serão excluídos.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  onDeleteProfile?.(viewingUser.id);
+                }}
+                className="w-full sm:flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 text-xs shadow-lg transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Sim, Excluir Perfil</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="w-full sm:w-auto rounded-xl px-4 py-2.5 text-xs text-slate-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
