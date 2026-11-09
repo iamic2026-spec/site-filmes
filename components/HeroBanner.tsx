@@ -55,11 +55,11 @@ export function HeroBanner({
           </p>
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
             <button
               type="button"
               onClick={onOpenAddMovie}
-              className="neon-btn-primary flex items-center gap-2 rounded-xl py-3 px-5 text-sm font-bold shadow-lg"
+              className="w-full sm:w-auto neon-btn-primary flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-bold shadow-lg"
             >
               <Plus className="h-4 w-4" />
               <span>Cadastrar Filme Favorito</span>
@@ -68,7 +68,7 @@ export function HeroBanner({
             <button
               type="button"
               onClick={onOpenCommunity}
-              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 py-3 px-5 text-sm font-semibold text-white hover:border-[#FBBF24]/50 hover:bg-white/10 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-3 px-5 text-sm font-semibold text-white hover:border-[#FBBF24]/50 hover:bg-white/10 transition-all"
             >
               <Users className="h-4 w-4 text-[#FBBF24]" />
               <span>Explorar Cinéfilos ({totalCinephiles})</span>

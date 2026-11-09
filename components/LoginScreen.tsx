@@ -349,40 +349,40 @@ export function LoginScreen({
           <button
             type="button"
             onClick={() => setActiveTab('register')}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2.5 px-1 text-[11px] sm:text-xs font-semibold transition-all ${
               activeTab === 'register'
                 ? 'bg-[#F43F5E] text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <UserPlus className="h-4 w-4" />
-            <span>Novo Cadastro</span>
+            <UserPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+            <span className="truncate">Novo Cadastro</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('login')}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2.5 px-1 text-[11px] sm:text-xs font-semibold transition-all ${
               activeTab === 'login'
                 ? 'bg-[#F43F5E] text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <LogIn className="h-4 w-4" />
-            <span>Entrar / Login</span>
+            <LogIn className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+            <span className="truncate">Entrar / Login</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('guest')}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2.5 px-1 text-[11px] sm:text-xs font-semibold transition-all ${
               activeTab === 'guest'
                 ? 'bg-[#F43F5E] text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Sparkles className="h-4 w-4 text-[#FBBF24]" />
-            <span>Visitante</span>
+            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#FBBF24] shrink-0" />
+            <span className="truncate">Visitante</span>
           </button>
         </div>
 

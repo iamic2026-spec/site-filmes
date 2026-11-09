@@ -15,6 +15,7 @@ import { AuthModal } from '@/components/AuthModal';
 import { LoginScreen } from '@/components/LoginScreen';
 import { SupabaseConfigModal } from '@/components/SupabaseConfigModal';
 import { ToastNotification } from '@/components/ToastNotification';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { Movie } from '@/lib/types';
 import { Film, Search, Plus, Filter, Sparkles, MessageSquare, Database } from 'lucide-react';
 
@@ -99,6 +100,11 @@ export default function HomePage() {
       });
   }, [viewingUserMovies, searchQuery, selectedGenreFilter, sortBy]);
 
+  // Current user's own movies count for mobile navigation
+  const currentUserMovies = useMemo(() => {
+    return movies.filter((m) => m.userId === currentUser.id);
+  }, [movies, currentUser.id]);
+
   // Handle open edit
   const handleOpenEditMovie = (movie: Movie) => {
     setMovieToEdit(movie);
@@ -174,7 +180,7 @@ export default function HomePage() {
       />
 
       {/* Main Container */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-28 md:pb-8">
         {/* Spotlight Hero Banner (Visible when viewing own profile and on movies tab) */}
         {isViewingOwnProfile && activeTab === 'movies' && (
           <HeroBanner
@@ -426,6 +432,24 @@ export default function HomePage() {
         key={isSupabaseConfigOpen ? 'config-open-bottom' : 'config-closed-bottom'}
         isOpen={isSupabaseConfigOpen}
         onClose={() => setIsSupabaseConfigOpen(false)}
+      />
+
+      {/* Mobile Sticky Bottom Navigation (Mobile UX 100% synchronized) */}
+      <MobileBottomNav
+        currentUser={currentUser}
+        isViewingOwnProfile={isViewingOwnProfile}
+        activeTab={activeTab}
+        totalMovies={currentUserMovies.length}
+        totalComments={viewingUserComments.length}
+        onGoToMyProfile={() => {
+          visitProfile(currentUser.id);
+          setActiveTab('movies');
+        }}
+        onOpenCommunity={() => setActiveTab('community')}
+        onOpenGuestbook={() => setActiveTab('guestbook')}
+        onOpenAddMovie={handleOpenAddMovie}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={logout}
       />
 
       {/* Toast feedback notification */}

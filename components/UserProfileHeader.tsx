@@ -155,11 +155,11 @@ export function UserProfileHeader({
                   <button
                     type="button"
                     onClick={onOpenAuth}
-                    className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 py-2.5 px-3.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:border-[#38BDF8] hover:text-[#38BDF8] transition-all"
+                    className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 py-2.5 px-3.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:border-[#38BDF8] hover:text-[#38BDF8] transition-all shadow-sm"
                     title="Acessar com outro usuário ou cadastrar nova conta"
                   >
                     <Users className="h-3.5 w-3.5 text-[#38BDF8]" />
-                    <span className="hidden sm:inline">Trocar Usuário</span>
+                    <span>Trocar Usuário</span>
                   </button>
                 )}
 
@@ -179,11 +179,11 @@ export function UserProfileHeader({
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirm(true)}
-                    className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 py-2.5 px-3 text-xs font-semibold text-red-400 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white transition-all shadow-sm"
+                    className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 py-2.5 px-3.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white transition-all shadow-sm"
                     title="Excluir permanentemente este perfil e seus filmes"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Excluir Perfil</span>
+                    <span>Excluir Perfil</span>
                   </button>
                 )}
               </>
@@ -271,11 +271,11 @@ export function UserProfileHeader({
         </div>
 
         {/* Navigation Tabs (Functional buttons, §1.A) */}
-        <div className="mt-6 flex items-center gap-2 border-t border-white/8 pt-4">
+        <div className="mt-6 flex items-center gap-2 border-t border-white/8 pt-4 overflow-x-auto pb-2 custom-scrollbar flex-nowrap">
           <button
             type="button"
             onClick={() => setActiveTab('movies')}
-            className={`flex items-center gap-2 rounded-xl py-2 px-4 text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 rounded-xl py-2 px-3.5 sm:px-4 text-xs font-semibold transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'movies'
                 ? 'bg-white/15 text-white border border-[#F43F5E]/50 shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -288,7 +288,7 @@ export function UserProfileHeader({
           <button
             type="button"
             onClick={() => setActiveTab('guestbook')}
-            className={`flex items-center gap-2 rounded-xl py-2 px-4 text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 rounded-xl py-2 px-3.5 sm:px-4 text-xs font-semibold transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'guestbook'
                 ? 'bg-white/15 text-white border border-[#F43F5E]/50 shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -301,7 +301,7 @@ export function UserProfileHeader({
           <button
             type="button"
             onClick={() => setActiveTab('community')}
-            className={`flex items-center gap-2 rounded-xl py-2 px-4 text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 rounded-xl py-2 px-3.5 sm:px-4 text-xs font-semibold transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'community'
                 ? 'bg-white/15 text-white border border-[#F43F5E]/50 shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
