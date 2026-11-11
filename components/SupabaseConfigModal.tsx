@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Database, Check, Copy, ExternalLink, ShieldCheck, AlertCircle, Code, Terminal, CheckCircle2 } from 'lucide-react';
-import { getSupabaseCredentials, saveSupabaseCredentials, clearSupabaseCredentials } from '@/lib/supabase';
+import { getSupabaseCredentials, saveSupabaseCredentialsToServer, syncSupabaseConfigFromServer, clearSupabaseCredentials } from '@/lib/supabase';
 
 interface SupabaseConfigModalProps {
   isOpen: boolean;
@@ -215,7 +215,16 @@ export function SupabaseConfigModal({
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
   const [isConfigured, setIsConfigured] = useState(() => getSupabaseCredentials().isConfigured);
+  const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    syncSupabaseConfigFromServer().then((creds) => {
+      if (creds.url) setUrlInput(creds.url);
+      if (creds.anonKey) setKeyInput(creds.anonKey);
+      setIsConfigured(creds.isConfigured);
+    });
+  }, []);
 
   if (!isOpen) return null;
 
@@ -231,17 +240,20 @@ export function SupabaseConfigModal({
     setTimeout(() => setCopiedSql(false), 3000);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveSupabaseCredentials(urlInput, keyInput);
+    setIsSaving(true);
+    await saveSupabaseCredentialsToServer(urlInput, keyInput);
     const creds = getSupabaseCredentials();
     setIsConfigured(creds.isConfigured);
     setSaveSuccess(true);
     onCredentialsUpdated?.();
+    setIsSaving(false);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    await saveSupabaseCredentialsToServer('', '');
     clearSupabaseCredentials();
     const creds = getSupabaseCredentials();
     setUrlInput(creds.url);

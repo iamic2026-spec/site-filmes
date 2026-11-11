@@ -52,6 +52,7 @@ export default function HomePage() {
     deleteUserProfile,
     switchUserWithPassword,
     resetToDefault,
+    reloadFromSupabase,
   } = useMovieSocial();
 
   // Active Main Tab: 'movies' | 'guestbook' | 'community'
@@ -155,6 +156,7 @@ export default function HomePage() {
           key={isSupabaseConfigOpen ? 'config-open' : 'config-closed'}
           isOpen={isSupabaseConfigOpen}
           onClose={() => setIsSupabaseConfigOpen(false)}
+          onCredentialsUpdated={reloadFromSupabase}
         />
         <ToastNotification toast={toastMessage} />
       </>
@@ -432,6 +434,7 @@ export default function HomePage() {
         key={isSupabaseConfigOpen ? 'config-open-bottom' : 'config-closed-bottom'}
         isOpen={isSupabaseConfigOpen}
         onClose={() => setIsSupabaseConfigOpen(false)}
+        onCredentialsUpdated={reloadFromSupabase}
       />
 
       {/* Mobile Sticky Bottom Navigation (Mobile UX 100% synchronized) */}

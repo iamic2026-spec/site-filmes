@@ -1,128 +1,212 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { User, Movie, ProfileComment } from '@/lib/types';
 import { INITIAL_USERS, INITIAL_MOVIES, INITIAL_COMMENTS } from '@/lib/initialData';
-import { getSupabaseClient, getSupabaseCredentials } from '@/lib/supabase';
-
-const emptySubscribe = () => () => {};
-
-const STORAGE_KEYS = {
-  USERS: 'cinelumina_users_v2',
-  MOVIES: 'cinelumina_movies_v2',
-  COMMENTS: 'cinelumina_comments_v2',
-  CURRENT_USER_ID: 'cinelumina_current_user_v2',
-  FOLLOWING: 'cinelumina_following_v2',
-};
+import {
+  getSupabaseClient,
+  getSupabaseCredentials,
+  syncSupabaseConfigFromServer,
+  fetchRemoteProfiles,
+  fetchRemoteMovies,
+  fetchRemoteComments,
+  dbUpsertProfile,
+  dbInsertMovie,
+  dbUpdateMovie,
+  dbDeleteMovie,
+  dbInsertComment,
+  dbDeleteComment,
+  dbDeleteProfile,
+} from '@/lib/supabase';
 
 export function useMovieSocial() {
-  const isLoaded = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false
-  );
-  
-  const [users, setUsers] = useState<User[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEYS.USERS);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((u: User) => {
-              if (!u.isGuest && !u.password) {
-                const initMatch = INITIAL_USERS.find((init) => init.id === u.id);
-                return {
-                  ...u,
-                  password: initMatch?.password || '123456',
-                };
-              }
-              return u;
-            });
-          }
-        }
-      } catch {}
-    }
-    return INITIAL_USERS;
-  });
-
-  const [movies, setMovies] = useState<Movie[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEYS.MOVIES);
-        if (stored) return JSON.parse(stored);
-      } catch {}
-    }
-    return INITIAL_MOVIES;
-  });
-
-  const [comments, setComments] = useState<ProfileComment[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEYS.COMMENTS);
-        if (stored) return JSON.parse(stored);
-      } catch {}
-    }
-    return INITIAL_COMMENTS;
-  });
-
-  const [currentUserId, setCurrentUserId] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-        if (stored) return stored;
-      } catch {}
-    }
-    return 'user-lucas';
-  });
-
-  const [viewingUserId, setViewingUserId] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-        if (stored) return stored;
-      } catch {}
-    }
-    return 'user-lucas';
-  });
-
-  const [followedUserIds, setFollowedUserIds] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEYS.FOLLOWING);
-        if (stored) return JSON.parse(stored);
-      } catch {}
-    }
-    return ['user-beatriz'];
-  });
-
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<{ id: number; text: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const [supabaseConnected, setSupabaseConnected] = useState<boolean>(false);
 
-  // Save to localStorage when states change
-  useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-      localStorage.setItem(STORAGE_KEYS.MOVIES, JSON.stringify(movies));
-      localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(comments));
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, currentUserId);
-      localStorage.setItem(STORAGE_KEYS.FOLLOWING, JSON.stringify(followedUserIds));
-    } catch {
-      // Handle quota error gracefully
-    }
-  }, [users, movies, comments, currentUserId, followedUserIds, isLoaded]);
+  // Users: baseline initial demo cinephiles + all registered users loaded directly from Supabase
+  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [movies, setMovies] = useState<Movie[]>(INITIAL_MOVIES);
+  const [comments, setComments] = useState<ProfileComment[]>(INITIAL_COMMENTS);
+
+  const [currentUserId, setCurrentUserId] = useState<string>('user-lucas');
+  const [viewingUserId, setViewingUserId] = useState<string>('user-lucas');
+  const [followedUserIds, setFollowedUserIds] = useState<string[]>(['user-beatriz']);
+
+  const [toastMessage, setToastMessage] = useState<{ id: number; text: string; type: 'success' | 'info' | 'error' } | null>(null);
 
   const showToast = useCallback((text: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToastMessage({ id: Date.now(), text, type });
     setTimeout(() => {
       setToastMessage((prev) => (prev?.text === text ? null : prev));
-    }, 3200);
+    }, 3500);
+  }, []);
+
+  // Synchronize data from Supabase Cloud on mount & when credentials change
+  const reloadFromSupabase = useCallback(async () => {
+    const creds = await syncSupabaseConfigFromServer();
+    const client = getSupabaseClient();
+
+    if (!client || !creds.isConfigured) {
+      setSupabaseConnected(false);
+      setIsLoaded(true);
+      return;
+    }
+
+    setSupabaseConnected(true);
+
+    try {
+      // 1. Fetch all cloud profiles from Supabase
+      const remoteProfiles = await fetchRemoteProfiles(client);
+
+      if (remoteProfiles && remoteProfiles.length > 0) {
+        // Merge cloud profiles with baseline seed users so initial demo profiles remain accessible
+        setUsers((prev) => {
+          const remoteIds = new Set(remoteProfiles.map((p) => p.id));
+          const remoteEmails = new Set(remoteProfiles.map((p) => p.email?.toLowerCase()).filter(Boolean));
+          const remoteUsernames = new Set(remoteProfiles.map((p) => p.username?.toLowerCase()));
+
+          // Keep baseline users that aren't overwritten in cloud
+          const nonDuplicatedBase = INITIAL_USERS.filter(
+            (b) =>
+              !remoteIds.has(b.id) &&
+              !remoteEmails.has(b.email?.toLowerCase()) &&
+              !remoteUsernames.has(b.username?.toLowerCase())
+          );
+
+          return [...remoteProfiles, ...nonDuplicatedBase];
+        });
+      }
+
+      // 2. Fetch all cloud movies from Supabase
+      const remoteMovies = await fetchRemoteMovies(client);
+      if (remoteMovies && remoteMovies.length > 0) {
+        setMovies((prev) => {
+          const remoteIds = new Set(remoteMovies.map((m) => m.id));
+          const baseMovies = INITIAL_MOVIES.filter((m) => !remoteIds.has(m.id));
+          return [...remoteMovies, ...baseMovies];
+        });
+      }
+
+      // 3. Fetch all cloud comments from Supabase
+      const remoteComments = await fetchRemoteComments(client);
+      if (remoteComments && remoteComments.length > 0) {
+        setComments((prev) => {
+          const remoteIds = new Set(remoteComments.map((c) => c.id));
+          const baseComments = INITIAL_COMMENTS.filter((c) => !remoteIds.has(c.id));
+          return [...remoteComments, ...baseComments];
+        });
+      }
+
+      // 4. Check active auth session in Supabase
+      const { data: sessionData } = await client.auth.getSession();
+      if (sessionData?.session?.user) {
+        const authUser = sessionData.session.user;
+        const matched = remoteProfiles.find(
+          (p) => p.id === authUser.id || (p.email && p.email.toLowerCase() === authUser.email?.toLowerCase())
+        );
+
+        if (matched) {
+          setCurrentUserId(matched.id);
+          setViewingUserId(matched.id);
+          setIsAuthenticated(true);
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao sincronizar dados com Supabase:', err);
+    } finally {
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    let isMounted = true;
+
+    const init = async () => {
+      const creds = await syncSupabaseConfigFromServer();
+      if (!isMounted) return;
+      const client = getSupabaseClient();
+
+      if (!client || !creds.isConfigured) {
+        setSupabaseConnected(false);
+        setIsLoaded(true);
+        return;
+      }
+
+      setSupabaseConnected(true);
+
+      try {
+        const [remoteProfiles, remoteMovies, remoteComments] = await Promise.all([
+          fetchRemoteProfiles(client),
+          fetchRemoteMovies(client),
+          fetchRemoteComments(client),
+        ]);
+
+        if (!isMounted) return;
+
+        if (remoteProfiles && remoteProfiles.length > 0) {
+          setUsers((prev) => {
+            const remoteIds = new Set(remoteProfiles.map((p) => p.id));
+            const remoteEmails = new Set(remoteProfiles.map((p) => p.email?.toLowerCase()).filter(Boolean));
+            const remoteUsernames = new Set(remoteProfiles.map((p) => p.username?.toLowerCase()));
+            const nonDuplicatedBase = INITIAL_USERS.filter(
+              (b) =>
+                !remoteIds.has(b.id) &&
+                !remoteEmails.has(b.email?.toLowerCase()) &&
+                !remoteUsernames.has(b.username?.toLowerCase())
+            );
+            return [...remoteProfiles, ...nonDuplicatedBase];
+          });
+        }
+
+        if (remoteMovies && remoteMovies.length > 0) {
+          setMovies((prev) => {
+            const remoteIds = new Set(remoteMovies.map((m) => m.id));
+            const baseMovies = INITIAL_MOVIES.filter((m) => !remoteIds.has(m.id));
+            return [...remoteMovies, ...baseMovies];
+          });
+        }
+
+        if (remoteComments && remoteComments.length > 0) {
+          setComments((prev) => {
+            const remoteIds = new Set(remoteComments.map((c) => c.id));
+            const baseComments = INITIAL_COMMENTS.filter((c) => !remoteIds.has(c.id));
+            return [...remoteComments, ...baseComments];
+          });
+        }
+
+        const { data: sessionData } = await client.auth.getSession();
+        if (sessionData?.session?.user && isMounted) {
+          const authUser = sessionData.session.user;
+          const matched = remoteProfiles.find(
+            (p) => p.id === authUser.id || (p.email && p.email.toLowerCase() === authUser.email?.toLowerCase())
+          );
+          if (matched) {
+            setCurrentUserId(matched.id);
+            setViewingUserId(matched.id);
+            setIsAuthenticated(true);
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao sincronizar dados com Supabase:', err);
+      } finally {
+        if (isMounted) {
+          setIsLoaded(true);
+        }
+      }
+    };
+
+    init();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Current logged in user object
   const currentUser = useMemo(() => {
-    return users.find((u) => u.id === currentUserId) || users[0];
+    return users.find((u) => u.id === currentUserId) || users[0] || INITIAL_USERS[0];
   }, [users, currentUserId]);
 
   // User currently being viewed
@@ -185,7 +269,7 @@ export function useMovieSocial() {
     showToast('Acesso de Visitante liberado! Você já pode cadastrar filmes e comentar.', 'success');
   }, [users, showToast]);
 
-  // Register new user account with email and Supabase integration
+  // Register new user account directly in Supabase Cloud
   const registerWithEmail = useCallback(async (
     email: string,
     password?: string,
@@ -198,6 +282,7 @@ export function useMovieSocial() {
     }
   ) => {
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = password?.trim() || '123456';
     const name = userData?.name.trim() || cleanEmail.split('@')[0];
     const username = (userData?.username || cleanEmail.split('@')[0]).replace('@', '').toLowerCase();
     const bio = userData?.bio?.trim() || 'Amante da sétima arte compartilhando meus filmes favoritos no CineLumina.';
@@ -206,14 +291,14 @@ export function useMovieSocial() {
       ? userData.favoriteGenres
       : ['Ficção Científica', 'Drama'];
 
-    const supabase = getSupabaseClient();
-    let supabaseId: string | null = null;
+    const client = getSupabaseClient();
+    let authUserId = `user-${Date.now()}`;
 
-    if (supabase && password) {
+    if (client) {
       try {
-        const { data, error } = await supabase.auth.signUp({
+        const { data: authData, error: authErr } = await client.auth.signUp({
           email: cleanEmail,
-          password,
+          password: cleanPass,
           options: {
             data: {
               name,
@@ -225,24 +310,35 @@ export function useMovieSocial() {
           },
         });
 
-        if (error) {
-          throw error;
+        if (authErr) {
+          throw authErr;
         }
 
-        if (data.user) {
-          supabaseId = data.user.id;
+        if (authData.user) {
+          authUserId = authData.user.id;
         }
+
+        // Upsert profile in public.profiles table in Supabase Cloud
+        await dbUpsertProfile(client, {
+          id: authUserId,
+          email: cleanEmail,
+          name,
+          username,
+          avatar,
+          bio,
+          favoriteGenres,
+          badge: 'Cinéfilo Supabase',
+        });
       } catch (err: any) {
-        console.warn('Supabase Auth error:', err);
-        // Display toast error or proceed to local sync
-        showToast(err.message || 'Aviso do Supabase. Salvando localmente.', 'info');
+        console.error('Erro no cadastro Supabase:', err);
+        throw new Error(err.message || 'Erro ao realizar cadastro no Supabase.');
       }
     }
 
     const newUser: User = {
-      id: supabaseId ? `sb-${supabaseId}` : `user-${Date.now()}`,
+      id: authUserId,
       email: cleanEmail,
-      password: password || '123456',
+      password: cleanPass,
       name,
       username,
       avatar,
@@ -250,17 +346,17 @@ export function useMovieSocial() {
       bio,
       favoriteGenres,
       joinedDate: 'Hoje',
-      badge: supabaseId ? 'Cinéfilo Supabase' : 'Novo Cinéfilo',
+      badge: client ? 'Cinéfilo Supabase' : 'Novo Cinéfilo',
       followersCount: 0,
       followingCount: 0,
       isGuest: false,
     };
 
-    setUsers((prev) => [newUser, ...prev]);
+    setUsers((prev) => [newUser, ...prev.filter((u) => u.id !== newUser.id && u.email !== newUser.email)]);
     setCurrentUserId(newUser.id);
     setViewingUserId(newUser.id);
     setIsAuthenticated(true);
-    showToast(`Bem-vindo(a) ao CineLumina, ${newUser.name}! Cadastro concluído com sucesso.`, 'success');
+    showToast(`Bem-vindo(a) ao CineLumina, ${newUser.name}! Cadastro concluído na nuvem.`, 'success');
     return newUser;
   }, [showToast]);
 
@@ -271,12 +367,13 @@ export function useMovieSocial() {
     bio: string;
     avatar?: string;
     favoriteGenres: string[];
+    password?: string;
   }) => {
     const generatedEmail = `${userData.username.replace(/[^a-z0-9_]/g, '') || 'usuario'}@cinelumina.com`;
-    return registerWithEmail(generatedEmail, '123456', userData);
+    return registerWithEmail(generatedEmail, userData.password || '123456', userData);
   }, [registerWithEmail]);
 
-  // Login with email or username with strict password check
+  // Login with email or username with strict Supabase authentication
   const loginWithEmail = useCallback(async (identifier: string, password?: string) => {
     const cleanId = identifier.trim().toLowerCase();
     const cleanPassword = password ? password.trim() : '';
@@ -288,34 +385,68 @@ export function useMovieSocial() {
       throw new Error('Por favor, informe a senha de acesso.');
     }
 
-    const supabase = getSupabaseClient();
+    const client = getSupabaseClient();
 
-    if (supabase && cleanId.includes('@')) {
+    if (client) {
+      let emailToAuth = cleanId;
+
+      // If user typed a username (without @), query Supabase profiles to retrieve the registered email
+      if (!cleanId.includes('@')) {
+        const { data: profileByUsername } = await client
+          .from('profiles')
+          .select('id, email, username')
+          .ilike('username', cleanId.replace('@', ''))
+          .maybeSingle();
+
+        if (profileByUsername?.email) {
+          emailToAuth = profileByUsername.email.toLowerCase();
+        }
+      }
+
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: cleanId,
+        const { data: authData, error: authErr } = await client.auth.signInWithPassword({
+          email: emailToAuth,
           password: cleanPassword,
         });
 
-        if (error) {
-          throw error;
+        if (authErr) {
+          throw authErr;
         }
 
-        if (data.user) {
-          const existing = users.find((u) => u.email === cleanId || u.id === `sb-${data.user.id}`);
-          if (existing) {
-            setCurrentUserId(existing.id);
-            setViewingUserId(existing.id);
+        if (authData.user) {
+          // Fetch or ensure profile in Supabase profiles table
+          const { data: profileData } = await client
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .maybeSingle();
+
+          let loggedInUser: User;
+          if (profileData) {
+            loggedInUser = {
+              id: String(profileData.id),
+              email: profileData.email || emailToAuth,
+              name: profileData.name || emailToAuth.split('@')[0],
+              username: profileData.username || emailToAuth.split('@')[0],
+              avatar: profileData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+              coverImage: profileData.cover_image,
+              bio: profileData.bio || 'Cinéfilo conectado ao CineLumina.',
+              favoriteGenres: profileData.favorite_genres || ['Ficção Científica'],
+              joinedDate: 'Hoje',
+              badge: profileData.badge || 'Cinéfilo Supabase',
+              followersCount: profileData.followers_count || 0,
+              followingCount: profileData.following_count || 0,
+              isGuest: false,
+            };
           } else {
-            const meta = data.user.user_metadata || {};
-            const newUser: User = {
-              id: `sb-${data.user.id}`,
-              email: cleanId,
-              password: cleanPassword,
-              name: meta.name || cleanId.split('@')[0],
-              username: meta.username || cleanId.split('@')[0],
+            const meta = authData.user.user_metadata || {};
+            loggedInUser = {
+              id: authData.user.id,
+              email: emailToAuth,
+              name: meta.name || emailToAuth.split('@')[0],
+              username: meta.username || emailToAuth.split('@')[0],
               avatar: meta.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-              bio: meta.bio || 'Cinéfilo conectado com Supabase.',
+              bio: meta.bio || 'Cinéfilo conectado ao CineLumina.',
               favoriteGenres: meta.favoriteGenres || ['Ficção Científica'],
               joinedDate: 'Hoje',
               badge: 'Cinéfilo Supabase',
@@ -323,23 +454,32 @@ export function useMovieSocial() {
               followingCount: 0,
               isGuest: false,
             };
-            setUsers((prev) => [newUser, ...prev]);
-            setCurrentUserId(newUser.id);
-            setViewingUserId(newUser.id);
+            // Save profile in Supabase
+            await dbUpsertProfile(client, loggedInUser);
           }
+
+          setUsers((prev) => [loggedInUser, ...prev.filter((u) => u.id !== loggedInUser.id)]);
+          setCurrentUserId(loggedInUser.id);
+          setViewingUserId(loggedInUser.id);
           setIsAuthenticated(true);
-          showToast(`Conectado com sucesso pelo Supabase!`, 'success');
+          showToast(`Conectado com sucesso pelo Supabase! Olá, ${loggedInUser.name}!`, 'success');
           return true;
         }
       } catch (err: any) {
         console.warn('Erro ao autenticar com Supabase:', err);
-        if (err?.message && (err.message.includes('Invalid') || err.message.includes('credentials') || err.message.includes('password'))) {
-          throw new Error('E-mail ou senha incorretos. Verifique e tente novamente.');
+        if (
+          err?.message &&
+          (err.message.includes('Invalid') ||
+            err.message.includes('credentials') ||
+            err.message.includes('password') ||
+            err.message.includes('login credentials'))
+        ) {
+          throw new Error('E-mail ou senha incorretos no Supabase. Verifique e tente novamente.');
         }
       }
     }
 
-    // Match in local users by email or username
+    // Match in baseline demo users if not authenticated via remote Supabase
     const matched = users.find(
       (u) =>
         (u.email && u.email.toLowerCase() === cleanId) ||
@@ -347,7 +487,6 @@ export function useMovieSocial() {
     );
 
     if (matched) {
-      // Validate password strictly: non-guest users MUST have correct password
       if (!matched.isGuest) {
         const expectedPassword = matched.password || '123456';
         if (cleanPassword !== expectedPassword) {
@@ -358,11 +497,11 @@ export function useMovieSocial() {
       setCurrentUserId(matched.id);
       setViewingUserId(matched.id);
       setIsAuthenticated(true);
-      showToast(`Conectado com sucesso como ${matched.name}!`, 'success');
+      showToast(`Conectado como ${matched.name}!`, 'success');
       return true;
     }
 
-    throw new Error('Nenhuma conta encontrada com este e-mail ou usuário. Crie seu cadastro na aba "Criar Cadastro".');
+    throw new Error('Nenhuma conta encontrada com este e-mail ou usuário no Supabase. Crie seu cadastro na aba "Novo Cadastro".');
   }, [users, showToast]);
 
   // Switch to an account requiring its password
@@ -390,30 +529,26 @@ export function useMovieSocial() {
     return true;
   }, [users, showToast]);
 
-  // Delete user profile and its associated data
-  const deleteUserProfile = useCallback((userIdToDelete: string) => {
-    // 1. Remove user from users list
+  // Delete user profile and its associated data directly in Supabase
+  const deleteUserProfile = useCallback(async (userIdToDelete: string) => {
+    const client = getSupabaseClient();
+    if (client) {
+      await dbDeleteProfile(client, userIdToDelete);
+    }
+
     setUsers((prev) => prev.filter((u) => u.id !== userIdToDelete));
-
-    // 2. Remove all movies registered by this user
     setMovies((prev) => prev.filter((m) => m.userId !== userIdToDelete));
-
-    // 3. Remove all comments on this profile or written by this profile
     setComments((prev) =>
       prev.filter((c) => c.profileUserId !== userIdToDelete && c.authorId !== userIdToDelete)
     );
-
-    // 4. Remove from followed users
     setFollowedUserIds((prev) => prev.filter((id) => id !== userIdToDelete));
 
-    // 5. If this was the currently active user, log out immediately
     if (currentUserId === userIdToDelete) {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        supabase.auth.signOut().catch(() => {});
+      if (client) {
+        client.auth.signOut().catch(() => {});
       }
       setIsAuthenticated(false);
-      showToast('Seu perfil e todos os filmes cadastrados foram excluídos.', 'info');
+      showToast('Seu perfil e dados foram excluídos com sucesso.', 'info');
     } else {
       showToast('Perfil removido com sucesso.', 'info');
     }
@@ -421,21 +556,29 @@ export function useMovieSocial() {
 
   // Logout method
   const logout = useCallback(() => {
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.auth.signOut().catch(() => {});
+    const client = getSupabaseClient();
+    if (client) {
+      client.auth.signOut().catch(() => {});
     }
     setIsAuthenticated(false);
     showToast('Você encerrou a sessão. Até logo, cinéfilo!', 'info');
   }, [showToast]);
 
-  // Update profile
-  const updateProfile = useCallback((updatedData: Partial<User>) => {
+  // Update profile in Supabase
+  const updateProfile = useCallback(async (updatedData: Partial<User>) => {
+    const client = getSupabaseClient();
+    if (client && !currentUser.isGuest) {
+      await dbUpsertProfile(client, {
+        id: currentUserId,
+        ...updatedData,
+      });
+    }
+
     setUsers((prev) =>
       prev.map((u) => (u.id === currentUserId ? { ...u, ...updatedData } : u))
     );
     showToast('Perfil atualizado com sucesso!', 'success');
-  }, [currentUserId, showToast]);
+  }, [currentUserId, currentUser.isGuest, showToast]);
 
   // Toggle follow user
   const toggleFollowUser = useCallback((targetUserId: string) => {
@@ -459,9 +602,19 @@ export function useMovieSocial() {
     showToast(isFollowed ? 'Deixou de seguir o cinéfilo' : 'Você agora está seguindo este cinéfilo!', 'info');
   }, [followedUserIds, showToast]);
 
-  // Add Movie
-  const addMovie = useCallback((movieData: Omit<Movie, 'id' | 'userId' | 'createdAt' | 'likesCount'>) => {
-    const newMovie: Movie = {
+  // Add Movie with Supabase Cloud persistence
+  const addMovie = useCallback(async (movieData: Omit<Movie, 'id' | 'userId' | 'createdAt' | 'likesCount'>) => {
+    const client = getSupabaseClient();
+    let savedMovie: Movie | null = null;
+
+    if (client && !currentUser.isGuest) {
+      savedMovie = await dbInsertMovie(client, {
+        ...movieData,
+        userId: currentUser.id,
+      });
+    }
+
+    const newMovie: Movie = savedMovie || {
       ...movieData,
       id: `mov-${Date.now()}`,
       userId: currentUser.id,
@@ -469,38 +622,73 @@ export function useMovieSocial() {
       likesCount: 0,
     };
 
-    setMovies((prev) => [newMovie, ...prev]);
+    setMovies((prev) => [newMovie, ...prev.filter((m) => m.id !== newMovie.id)]);
     showToast(`"${newMovie.title}" foi adicionado aos seus favoritos!`, 'success');
-  }, [currentUser.id, showToast]);
+  }, [currentUser, showToast]);
 
-  // Edit Movie
-  const editMovie = useCallback((movieId: string, updatedFields: Partial<Movie>) => {
+  // Edit Movie with Supabase Cloud persistence
+  const editMovie = useCallback(async (movieId: string, updatedFields: Partial<Movie>) => {
+    const client = getSupabaseClient();
+    if (client && !currentUser.isGuest) {
+      await dbUpdateMovie(client, movieId, updatedFields);
+    }
+
     setMovies((prev) =>
       prev.map((m) => (m.id === movieId ? { ...m, ...updatedFields } : m))
     );
     showToast('Filme atualizado com sucesso!', 'success');
-  }, [showToast]);
+  }, [currentUser.isGuest, showToast]);
 
-  // Delete Movie
-  const deleteMovie = useCallback((movieId: string) => {
+  // Delete Movie with Supabase Cloud persistence
+  const deleteMovie = useCallback(async (movieId: string) => {
+    const client = getSupabaseClient();
+    if (client && !currentUser.isGuest) {
+      await dbDeleteMovie(client, movieId);
+    }
+
     const movieToDelete = movies.find((m) => m.id === movieId);
     setMovies((prev) => prev.filter((m) => m.id !== movieId));
     showToast(`"${movieToDelete?.title || 'Filme'}" foi removido dos favoritos.`, 'info');
-  }, [movies, showToast]);
+  }, [currentUser.isGuest, movies, showToast]);
 
   // Like Movie
   const likeMovie = useCallback((movieId: string) => {
     setMovies((prev) =>
-      prev.map((m) => (m.id === movieId ? { ...m, likesCount: (m.likesCount || 0) + 1 } : m))
+      prev.map((m) => {
+        if (m.id === movieId) {
+          const newLikes = (m.likesCount || 0) + 1;
+          const client = getSupabaseClient();
+          if (client && !currentUser.isGuest) {
+            dbUpdateMovie(client, movieId, { likesCount: newLikes });
+          }
+          return { ...m, likesCount: newLikes };
+        }
+        return m;
+      })
     );
     showToast('Você curtiu este filme favorito!', 'info');
-  }, [showToast]);
+  }, [currentUser.isGuest, showToast]);
 
-  // Add Comment on Profile Guestbook
-  const addComment = useCallback((profileUserId: string, content: string, movieMention?: string) => {
+  // Add Comment on Profile Guestbook with Supabase Cloud persistence
+  const addComment = useCallback(async (profileUserId: string, content: string, movieMention?: string) => {
     if (!content.trim()) return;
 
-    const newComment: ProfileComment = {
+    const client = getSupabaseClient();
+    let savedComment: ProfileComment | null = null;
+
+    if (client) {
+      savedComment = await dbInsertComment(client, {
+        profileUserId,
+        authorId: currentUser.id,
+        authorName: currentUser.name,
+        authorUsername: currentUser.username,
+        authorAvatar: currentUser.avatar,
+        content: content.trim(),
+        movieMention: movieMention?.trim() || undefined,
+      });
+    }
+
+    const newComment: ProfileComment = savedComment || {
       id: `comm-${Date.now()}`,
       profileUserId,
       authorId: currentUser.id,
@@ -514,7 +702,7 @@ export function useMovieSocial() {
       hasLiked: false,
     };
 
-    setComments((prev) => [newComment, ...prev]);
+    setComments((prev) => [newComment, ...prev.filter((c) => c.id !== newComment.id)]);
     showToast('Sua mensagem foi publicada no mural deste cinéfilo!', 'success');
   }, [currentUser, showToast]);
 
@@ -523,11 +711,11 @@ export function useMovieSocial() {
     setComments((prev) =>
       prev.map((c) => {
         if (c.id === commentId) {
-          const hasLiked = !!c.hasLiked;
+          const hasLiked = !c.hasLiked;
           return {
             ...c,
-            hasLiked: !hasLiked,
-            likes: Math.max(0, c.likes + (hasLiked ? -1 : 1)),
+            hasLiked,
+            likes: Math.max(0, c.likes + (hasLiked ? 1 : -1)),
           };
         }
         return c;
@@ -535,28 +723,29 @@ export function useMovieSocial() {
     );
   }, []);
 
-  // Delete Comment
-  const deleteComment = useCallback((commentId: string) => {
+  // Delete Comment with Supabase Cloud persistence
+  const deleteComment = useCallback(async (commentId: string) => {
+    const client = getSupabaseClient();
+    if (client) {
+      await dbDeleteComment(client, commentId);
+    }
+
     setComments((prev) => prev.filter((c) => c.id !== commentId));
     showToast('Comentário removido.', 'info');
   }, [showToast]);
 
   // Reset to default seed
   const resetToDefault = useCallback(() => {
-    setUsers(INITIAL_USERS);
-    setMovies(INITIAL_MOVIES);
-    setComments(INITIAL_COMMENTS);
-    setCurrentUserId('user-lucas');
-    setViewingUserId('user-lucas');
-    setFollowedUserIds(['user-beatriz']);
-    localStorage.clear();
-    showToast('Dados restaurados com os cinéfilos originais!', 'info');
-  }, [showToast]);
+    reloadFromSupabase();
+    showToast('Dados recarregados da nuvem Supabase!', 'info');
+  }, [reloadFromSupabase, showToast]);
 
   return {
     isLoaded,
     isAuthenticated,
     setIsAuthenticated,
+    supabaseConnected,
+    reloadFromSupabase,
     users,
     currentUser,
     viewingUser,
